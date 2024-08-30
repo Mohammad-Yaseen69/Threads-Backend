@@ -192,7 +192,7 @@ const addingUserData = asyncHandler(async (req, res) => {
     const localPfpPath = req.file?.path
 
     if (localPfpPath) {
-        if(user.pfp.url !== "" && user.pfp.filePath !== ""){
+        if(!user.pfp){
             console.log("helo")
             await deleteFile(user.pfp.filePath)
         }

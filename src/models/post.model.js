@@ -13,7 +13,6 @@ const replies = new mongoose.Schema({
     },
     pfp: {
         type: String,
-        required: true
     },
     userName: {
         type: String,
@@ -31,7 +30,10 @@ const postSchema = new mongoose.Schema({
         required: true
     },
 
-    postImg: String,
+    postImg: {
+        url: String,
+        filePath: String,
+    },
 
     postedBy: {
         type: mongoose.Schema.Types.ObjectId,
