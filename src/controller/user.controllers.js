@@ -1,3 +1,4 @@
+import { Post } from "../models/post.model.js"
 import { User } from "../models/user.model.js"
 import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
@@ -167,12 +168,35 @@ const listAllUsers = asyncHandler(async (req, res) => {
 
 const getUserProfile = asyncHandler(async (req, res) => {
     const { userName } = req.params;
-    const user = await User.findOne({ userName }).select("-password")
-    if (!user) {
-        throw new ApiError(400, "User not found")
+
+
+    const aggregate = await User.aggregate([
+        {
+            $match: { userName }
+        },
+        {
+            $lookup: {
+                from: "posts",
+                localField: "_id",
+                foreignField: "postedBy",
+                as: "posts",
+                pipeline: [
+                    {
+                        $addFields: {
+                         likes:{ $size: "$likes"}
+                        }
+                    }
+                ]
+            }
+        },
+    ])
+
+    if(!aggregate){
+        throw new ApiError(404, "User not Found")
     }
+
     return res.status(200).json(
-        new ApiResponse(200, user, "User profile fetched successfully")
+        new ApiResponse(200, aggregate, "User profile fetched successfully")
     )
 })
 
@@ -192,7 +216,7 @@ const addingUserData = asyncHandler(async (req, res) => {
     const localPfpPath = req.file?.path
 
     if (localPfpPath) {
-        if(!user.pfp){
+        if (!user.pfp) {
             console.log("helo")
             await deleteFile(user.pfp.filePath)
         }

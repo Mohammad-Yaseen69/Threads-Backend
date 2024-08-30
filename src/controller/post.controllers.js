@@ -5,7 +5,7 @@ import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { deleteFile, uploadFile } from "../utils/firebaseHelpers.js"
 import fs from "fs"
-
+import mongoose from "mongoose"
 
 const createPost = asyncHandler(async (req, res) => {
     const { postTitle } = req.body
@@ -75,12 +75,42 @@ const getAllPosts = asyncHandler(async (req, res) => {
 
 const getPost = asyncHandler(async (req, res) => {
     const { postId } = req.params
-    const post = await Post.findById(postId)
+    
+    const aggregate = await Post.aggregate([
+        {
+            $match: { _id: new mongoose.Types.ObjectId(postId) }
+        },
+        {
+            $addFields:{
+                likes: {
+                    $size: "$likes"
+                }
+            }
+        },
+        {
+            $project:{
+                postTitle: 1,
+                postedBy: 1,
+                postImg: 1,
+                likes: 1,
+                date: 1,
+                replies: {
+                    text: 1,
+                    userId: 1,
+                    pfp: 1,
+                    userName: 1,
+                    likes: {
+                        $size: "$replies.likes"
+                    }
+                }
+            }
+        }
+    ])
 
-    if (!post) throw new ApiError(404, "Post not found")
+    if (!aggregate) throw new ApiError(404, "Post not found")
 
     return res.status(200).json(
-        new ApiResponse(200, post, "Post fetched successfully")
+        new ApiResponse(200, aggregate, "Post fetched successfully")
     )
 })
 
