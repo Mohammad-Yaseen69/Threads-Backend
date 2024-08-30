@@ -6,7 +6,8 @@ import {
     followUnfollowUser,
     listAllUsers,
     getUserProfile,
-    addingUserData
+    addingUserData,
+    userFeed
 } from "../controller/user.controllers.js"
 import { userAuth } from "../middlewares/auth.middleware.js"
 import { upload } from "../middlewares/multer.middleware.js"
@@ -18,6 +19,7 @@ router.post("/register", register)
 router.post("/login", login)
 router.get("/list", listAllUsers)
 router.get("/profile/:userName", getUserProfile)
+router.get("/feed", userAuth, userFeed)
 
 //Protected Routes
 

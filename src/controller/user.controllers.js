@@ -5,6 +5,7 @@ import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { deleteFile, uploadFile } from "../utils/firebaseHelpers.js"
 import fs from "fs"
+import mongoose from "mongoose"
 
 
 const cookieOption = {
@@ -183,7 +184,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
                 pipeline: [
                     {
                         $addFields: {
-                         likes:{ $size: "$likes"}
+                            likes: { $size: "$likes" }
                         }
                     }
                 ]
@@ -191,7 +192,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
         },
     ])
 
-    if(!aggregate){
+    if (!aggregate) {
         throw new ApiError(404, "User not Found")
     }
 
@@ -239,6 +240,79 @@ const addingUserData = asyncHandler(async (req, res) => {
     )
 })
 
+
+const userFeed = asyncHandler(async (req, res) => {
+    const user = req.user;
+
+    let feed = [];
+
+
+    if (user.following && user.following.length > 0) {
+        // Step 1: Fetch posts from followed users
+        const aggregate = await User.aggregate([
+            {
+                $match: { _id: new mongoose.Types.ObjectId(user._id) }
+            },
+            {
+                $lookup: {
+                    from: "posts",
+                    localField: "following",
+                    foreignField: "postedBy",
+                    as: "feed",
+                    pipeline: [
+                        {
+                            $addFields: {
+                                likes: {
+                                    $size: '$likes'
+                                }
+                            }
+                        },
+                        {
+                            $sort: { createdAt: -1 }
+                        }
+                    ]
+                }
+            },
+            {
+                $unwind: "$feed"
+            },
+            {
+                $sort: { "feed.createdAt": -1 }
+            },
+            {
+                $group: {
+                    _id: "$_id",
+                    feed: { $push: "$feed" }
+                }
+            }
+        ]);
+
+        // console.log(aggregate)
+        // Get the posts feed from the aggregation result
+        feed = aggregate[0] ? aggregate[0] : [];
+    }
+
+    // Step 2: Check if feed has less than 10 posts
+    if (feed.length < 10) {
+        const additionalPostsCount = 10 - feed.length;
+
+        // Fetch additional posts from other users to fill up the feed
+        const additionalPosts = await Post.find({ 
+            postedBy: { $nin: user.following.concat(user._id) }  // Exclude posts by followed users and the current user
+        })
+        .sort({ createdAt: -1 })
+        .limit(additionalPostsCount);
+        // Combine the feeds
+        feed = feed.concat(additionalPosts);
+    }
+
+    // Step 3: Return the feed
+    return res.status(200).json(
+        new ApiResponse(200, feed, "User feed fetched successfully")
+    );
+});
+
+
 export {
     register,
     login,
@@ -246,5 +320,6 @@ export {
     followUnfollowUser,
     listAllUsers,
     getUserProfile,
-    addingUserData
+    addingUserData,
+    userFeed
 }

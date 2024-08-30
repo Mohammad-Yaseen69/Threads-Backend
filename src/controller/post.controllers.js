@@ -34,8 +34,6 @@ const createPost = asyncHandler(async (req, res) => {
         }
     }
 
-    console.log(obj)
-
     const post = await Post.create(obj)
 
     if (!post) throw new ApiError(400, "Error while creating Post")
