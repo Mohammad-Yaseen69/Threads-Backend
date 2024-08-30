@@ -5,7 +5,6 @@ import jwt from "jsonwebtoken"
 const userSchema = new mongoose.Schema({
     name: {
         type: String,
-        required: true,
     },
     userName: {
         type: String,
@@ -38,14 +37,18 @@ const userSchema = new mongoose.Schema({
         }
     ],
     pfp: {
-        type: String,
-        default: ""
+        url: String,
+        filePath: String
     },
     bio: {
         type: String,
         default: ""
-    }
-},{timestamps: true})
+    },
+
+    instagram: String,
+
+    token: String
+}, { timestamps: true })
 
 
 userSchema.pre('save', async function () {
