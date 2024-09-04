@@ -7,7 +7,10 @@ import {
     listAllUsers,
     getUserProfile,
     addingUserData,
-    userFeed
+    userFeed,
+    getLoggedInUser,
+    changePassword,
+    changeUserName
 } from "../controller/user.controllers.js"
 import { userAuth } from "../middlewares/auth.middleware.js"
 import { upload } from "../middlewares/multer.middleware.js"
@@ -26,5 +29,8 @@ router.get("/feed", userAuth, userFeed)
 router.get("/logout", userAuth, logout)
 router.post("/follow/:id", userAuth, followUnfollowUser)
 router.post("/add", userAuth, upload.single("pfp"), addingUserData)
+router.get("/getUser", userAuth, getLoggedInUser)
+router.post("/changePassword", userAuth, changePassword)
+router.post("/changeUserName", userAuth, changeUserName)
 
 export default router;

@@ -29,9 +29,9 @@ const generateTokenForCookie = async (user) => {
 }
 
 const register = asyncHandler(async (req, res) => {
-    const { userName, email, password } = req.body
+    const { userName, email, password  ,name} = req.body
 
-    if (!userName || !email || !password) {
+    if (!userName || !email || !password || !name) {
         throw new ApiError(400, "All fields are required")
     }
 
@@ -58,7 +58,8 @@ const register = asyncHandler(async (req, res) => {
     const user = await User.create({
         userName,
         email,
-        password
+        password,
+        name
     })
 
 
@@ -66,7 +67,9 @@ const register = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Something went wrong while registering the user")
     }
 
-    return res.status(201).json(
+    const Token = generateTokenForCookie(user)
+
+    return res.status(201).cookie("token", Token, cookieOption).json(
         new ApiResponse(201, user, "User Registered Successfully")
     )
 })
@@ -203,7 +206,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
 
 
 const addingUserData = asyncHandler(async (req, res) => {
-    const { name, bio, instagram } = req.body
+    const { name, bio, instagram} = req.body
     const user = req.user
 
     if (!name) {
@@ -240,6 +243,59 @@ const addingUserData = asyncHandler(async (req, res) => {
     )
 })
 
+const changeUserName = asyncHandler(async (req, res) => {
+    const { userName } = req.body
+    const user = req.user
+
+    if (!userName) {
+        throw new ApiError(400, "Username is required")
+    }
+
+    const existingUserName = await User.findOne({ userName })
+
+    if (existingUserName) {
+        throw new ApiError(400, "Username is taken")
+    }
+
+    user.userName = userName
+
+    await user.save()
+
+    return res.status(200).json(
+        new ApiResponse(200, user, "Username updated successfully")
+    )
+})
+
+const changePassword = asyncHandler(async (req, res) => {
+    const { oldPassword, newPassword } = req.body
+    const user = req.user
+
+    if (!oldPassword || !newPassword) {
+        throw new ApiError(400, "All fields are required")
+    }
+
+    const isCorrect = await user.comparePassword(oldPassword)
+
+    if (!isCorrect) {
+        throw new ApiError(400, "Invalid old password")
+    }
+
+    user.password = newPassword
+
+    await user.save()
+
+    return res.status(200).json(
+        new ApiResponse(200, user, "Password updated successfully")
+    )
+})
+
+const getLoggedInUser = asyncHandler(async (req, res) => {
+    const user = req.user
+
+    return res.status(200).json(
+        new ApiResponse(200, user, "Logged in user fetched successfully")
+    )
+})
 
 const userFeed = asyncHandler(async (req, res) => {
     const user = req.user;
@@ -321,5 +377,8 @@ export {
     listAllUsers,
     getUserProfile,
     addingUserData,
-    userFeed
+    userFeed,
+    getLoggedInUser,
+    changePassword,
+    changeUserName
 }
