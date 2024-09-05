@@ -29,7 +29,7 @@ const generateTokenForCookie = async (user) => {
 }
 
 const register = asyncHandler(async (req, res) => {
-    const { userName, email, password  ,name} = req.body
+    const { userName, email, password, name } = req.body
 
     if (!userName || !email || !password || !name) {
         throw new ApiError(400, "All fields are required")
@@ -193,6 +193,12 @@ const getUserProfile = asyncHandler(async (req, res) => {
                 ]
             }
         },
+        {
+            $addFields: {
+                followers: { $size: "$followers" },
+                following: { $size: "$following" }
+            }
+        }
     ])
 
     if (!aggregate) {
@@ -206,7 +212,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
 
 
 const addingUserData = asyncHandler(async (req, res) => {
-    const { name, bio, instagram} = req.body
+    const { name, bio, instagram } = req.body
     const user = req.user
 
     if (!name) {
@@ -259,7 +265,7 @@ const changeUserName = asyncHandler(async (req, res) => {
 
     user.userName = userName
 
-    await user.save({validateBeforeSave : false})
+    await user.save({ validateBeforeSave: false })
 
     return res.status(200).json(
         new ApiResponse(200, user, "Username updated successfully")
@@ -353,11 +359,11 @@ const userFeed = asyncHandler(async (req, res) => {
         const additionalPostsCount = 10 - feed.length;
 
         // Fetch additional posts from other users to fill up the feed
-        const additionalPosts = await Post.find({ 
+        const additionalPosts = await Post.find({
             postedBy: { $nin: user.following.concat(user._id) }  // Exclude posts by followed users and the current user
         })
-        .sort({ createdAt: -1 })
-        .limit(additionalPostsCount);
+            .sort({ createdAt: -1 })
+            .limit(additionalPostsCount);
         // Combine the feeds
         feed = feed.concat(additionalPosts);
     }
