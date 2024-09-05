@@ -21,7 +21,7 @@ const router = Router();
 router.post("/register", register)
 router.post("/login", login)
 router.get("/list", listAllUsers)
-router.get("/profile/:userName", getUserProfile)
+router.get("/profile/:userName", userAuth, getUserProfile)
 router.get("/feed", userAuth, userFeed)
 
 //Protected Routes

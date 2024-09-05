@@ -195,8 +195,11 @@ const getUserProfile = asyncHandler(async (req, res) => {
         },
         {
             $addFields: {
-                followers: { $size: "$followers" },
-                following: { $size: "$following" }
+                followersCount: { $size: "$followers" },
+                followingCount: { $size: "$following" },
+                followed: {
+                    $in: [new mongoose.Types.ObjectId(req.user?._id), "$followers"]
+                }
             }
         }
     ])
