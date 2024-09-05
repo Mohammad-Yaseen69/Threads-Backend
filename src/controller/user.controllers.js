@@ -259,7 +259,7 @@ const changeUserName = asyncHandler(async (req, res) => {
 
     user.userName = userName
 
-    await user.save()
+    await user.save({validateBeforeSave : false})
 
     return res.status(200).json(
         new ApiResponse(200, user, "Username updated successfully")
