@@ -186,8 +186,26 @@ const getUserProfile = asyncHandler(async (req, res) => {
                 as: "posts",
                 pipeline: [
                     {
+                        $lookup: {
+                            from: "users",
+                            localField: "postedBy",
+                            foreignField: "_id",
+                            as: "postedBy",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        name: 1,
+                                        userName: 1,
+                                        pfp: 1,
+                                        _id: 1,
+                                    }
+                                }
+                            ]
+                        },
+                    },
+                    {
                         $addFields: {
-                            likes: { $size: "$likes" }
+                            postedBy: { $first: "$postedBy" }
                         }
                     }
                 ]
@@ -326,10 +344,21 @@ const userFeed = asyncHandler(async (req, res) => {
                     as: "feed",
                     pipeline: [
                         {
-                            $addFields: {
-                                likes: {
-                                    $size: '$likes'
-                                }
+                            $lookup: {
+                                from: "users",
+                                localField: "postedBy",
+                                foreignField: "_id",
+                                as: "user",
+                                pipeline: [
+                                    {
+                                        $project: {
+                                            name: 1,
+                                            userName: 1,
+                                            pfp: 1,
+                                            _id: 1,
+                                        }
+                                    }
+                                ]
                             }
                         },
                         {
@@ -366,7 +395,8 @@ const userFeed = asyncHandler(async (req, res) => {
             postedBy: { $nin: user.following.concat(user._id) }  // Exclude posts by followed users and the current user
         })
             .sort({ createdAt: -1 })
-            .limit(additionalPostsCount);
+            .limit(additionalPostsCount)
+            .populate("postedBy", "name userName pfp _id");
         // Combine the feeds
         feed = feed.concat(additionalPosts);
     }
