@@ -72,45 +72,93 @@ const getAllPosts = asyncHandler(async (req, res) => {
 })
 
 const getPost = asyncHandler(async (req, res) => {
-    const { postId } = req.params
-    
+    const { postId } = req.params;
+    const userId = new mongoose.Types.ObjectId(req.user?._id); // The logged-in user's ID
+
     const aggregate = await Post.aggregate([
         {
             $match: { _id: new mongoose.Types.ObjectId(postId) }
         },
         {
-            $addFields:{
-                likes: {
-                    $size: "$likes"
+            $addFields: {
+                likesCount: { $size: "$likes" },
+                repliesCount: { $size: "$replies" },
+                likedByMe: { $in: [userId, "$likes"] }
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "postedBy",
+                foreignField: "_id",
+                as: "postedBy",
+                pipeline: [
+                    {
+                        $project: {
+                            userName: 1,
+                            pfp: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields: {
+                replies: {
+                    $map: {
+                        input: "$replies",
+                        as: "reply",
+                        in: {
+                            _id: "$$reply._id",
+                            text: "$$reply.text",
+                            userId: "$$reply.userId",
+                            pfp: "$$reply.pfp",
+                            userName: "$$reply.userName",
+                            likes: "$$reply.likes",
+                            likesCount: { $size: "$$reply.likes" },
+                            createdAt: "$$reply.createdAt",
+                            isUserReply: { $eq: ["$$reply.userId", userId] } // Check if reply is from logged-in user
+                        }
+                    }
                 }
             }
         },
         {
-            $project:{
+            $addFields: {
+                replies: {
+                    $sortArray: {
+                        input: "$replies",
+                        sortBy: {
+                            isUserReply: -1, // First sort: logged-in user's replies
+                            likesCount: -1   // Second sort: by likes count
+                        }
+                    }
+                }
+            }
+        },
+        {
+            $project: {
                 postTitle: 1,
                 postedBy: 1,
                 postImg: 1,
                 likes: 1,
                 date: 1,
-                replies: {
-                    text: 1,
-                    userId: 1,
-                    pfp: 1,
-                    userName: 1,
-                    likes: {
-                        $size: "$replies.likes"
-                    }
-                }
+                replies: 1,
+                likedByMe: 1,
+                createdAt: 1,
+                likesCount: 1,
+                repliesCount: 1,
             }
         }
-    ])
+    ]);
 
-    if (!aggregate) throw new ApiError(404, "Post not found")
+    if (!aggregate) throw new ApiError(404, "Post not found");
 
     return res.status(200).json(
         new ApiResponse(200, aggregate, "Post fetched successfully")
-    )
-})
+    );
+});
+
 
 const likeToggle = asyncHandler(async (req, res) => {
     const { postId } = req.params
@@ -151,15 +199,17 @@ const addReply = asyncHandler(async (req, res) => {
         text,
         userId: user._id,
         pfp: user.pfp.url,
-        userName: user.name,
+        userName: user.userName,
     }
 
     post.replies.push(reply)
 
     await post.save()
 
+    const createdReply = post.replies[post.replies.length - 1];
+
     return res.status(200).json(
-        new ApiResponse(200, post, "Reply added successfully")
+        new ApiResponse(200, createdReply, "Reply added successfully")
     )
 })
 
