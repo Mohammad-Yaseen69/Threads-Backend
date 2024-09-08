@@ -6,7 +6,7 @@ import { upload } from "../middlewares/multer.middleware.js"
 const router = Router()
 
 
-router.get("/:postId", getPost)
+router.get("/:postId",userAuth, getPost)
 router.get("/", getAllPosts)
 
 // Protected Routes
