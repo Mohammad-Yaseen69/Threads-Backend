@@ -11,9 +11,17 @@ app.use(cookieParser())
 app.use(express.static("public"))
 
 app.use(cors({
-    origin: process.env.CORS_ORIGIN,
+    origin: function (origin, callback) {
+        // Allow requests from your specified domain or localhost IPs
+        if (origin === process.env.CORS_ORIGIN || origin === 'http://192.168.1.111:5173' || origin === 'http://localhost:5173') {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true
-}))
+}));
+
 
 
 // Routes

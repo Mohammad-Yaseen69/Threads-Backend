@@ -11,7 +11,7 @@ import mongoose from "mongoose"
 const cookieOption = {
     httpOnly: true,
     secure: true,
-    sameSite: "strict",
+    sameSite: "none",
     maxAge: 30 * 24 * 60 * 60 * 1000
 }
 
@@ -67,7 +67,7 @@ const register = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Something went wrong while registering the user")
     }
 
-    const Token = generateTokenForCookie(user)
+    const Token = await generateTokenForCookie(user)
 
     return res.status(201).cookie("token", Token, cookieOption).json(
         new ApiResponse(201, user, "User Registered Successfully")
@@ -323,15 +323,12 @@ const getLoggedInUser = asyncHandler(async (req, res) => {
         new ApiResponse(200, user, "Logged in user fetched successfully")
     )
 })
-
 const userFeed = asyncHandler(async (req, res) => {
     const user = req.user;
-
     let feed = [];
 
-
     if (user.following && user.following.length > 0) {
-        // Step 1: Fetch posts from followed users
+        // Step 1: Fetch posts from followed users using aggregation
         const aggregate = await User.aggregate([
             {
                 $match: { _id: new mongoose.Types.ObjectId(user._id) }
@@ -381,9 +378,7 @@ const userFeed = asyncHandler(async (req, res) => {
             }
         ]);
 
-        // console.log(aggregate)
-        // Get the posts feed from the aggregation result
-        feed = aggregate[0] ? aggregate[0] : [];
+        feed = aggregate[0]?.feed || [];
     }
 
     // Step 2: Check if feed has less than 10 posts
@@ -391,12 +386,24 @@ const userFeed = asyncHandler(async (req, res) => {
         const additionalPostsCount = 10 - feed.length;
 
         // Fetch additional posts from other users to fill up the feed
-        const additionalPosts = await Post.find({
+        let additionalPosts = await Post.find({
             postedBy: { $nin: user.following.concat(user._id) }  // Exclude posts by followed users and the current user
         })
             .sort({ createdAt: -1 })
             .limit(additionalPostsCount)
             .populate("postedBy", "name userName pfp _id");
+
+        // Format additional posts to match the structure of the aggregation result
+        additionalPosts = additionalPosts.map(post => ({
+            ...post.toObject(),
+            user: [{
+                name: post.postedBy.name,
+                userName: post.postedBy.userName,
+                pfp: post.postedBy.pfp,
+                _id: post.postedBy._id
+            }]
+        }));
+
         // Combine the feeds
         feed = feed.concat(additionalPosts);
     }
@@ -406,6 +413,7 @@ const userFeed = asyncHandler(async (req, res) => {
         new ApiResponse(200, feed, "User feed fetched successfully")
     );
 });
+
 
 
 export {
