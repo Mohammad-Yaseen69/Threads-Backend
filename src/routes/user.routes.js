@@ -10,7 +10,8 @@ import {
     userFeed,
     getLoggedInUser,
     changePassword,
-    changeUserName
+    changeUserName,
+    getSuggestedUsers
 } from "../controller/user.controllers.js"
 import { userAuth } from "../middlewares/auth.middleware.js"
 import { upload } from "../middlewares/multer.middleware.js"
@@ -21,8 +22,6 @@ const router = Router();
 router.post("/register", register)
 router.post("/login", login)
 router.get("/list", listAllUsers)
-router.get("/profile/:userName", userAuth, getUserProfile)
-router.get("/feed", userAuth, userFeed)
 
 //Protected Routes
 
@@ -32,5 +31,8 @@ router.post("/add", userAuth, upload.single("pfp"), addingUserData)
 router.get("/getUser", userAuth, getLoggedInUser)
 router.post("/changePassword", userAuth, changePassword)
 router.post("/changeUserName", userAuth, changeUserName)
+router.get("/profile/:userName", userAuth, getUserProfile)
+router.get("/feed", userAuth, userFeed)
+router.get("/suggested", userAuth, getSuggestedUsers)
 
 export default router;

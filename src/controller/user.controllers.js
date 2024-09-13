@@ -415,6 +415,20 @@ const userFeed = asyncHandler(async (req, res) => {
 });
 
 
+const getSuggestedUsers = asyncHandler(async (req, res) => {
+    const user = req.user;
+
+    const suggestedUsers = await User.find({
+        _id: { $nin: [user?._id, ...user.following] }  // Exclude the current user and followed users
+    })
+        .limit(5);
+
+    return res.status(200).json(
+        new ApiResponse(200, suggestedUsers, "Suggested users fetched successfully")
+    );
+})
+
+
 
 export {
     register,
@@ -427,5 +441,6 @@ export {
     userFeed,
     getLoggedInUser,
     changePassword,
-    changeUserName
+    changeUserName,
+    getSuggestedUsers
 }
