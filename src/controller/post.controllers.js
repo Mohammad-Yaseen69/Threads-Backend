@@ -1,6 +1,6 @@
 import { User } from "../models/user.model.js"
 import { Post } from "../models/post.model.js"
-import { ApiError } from "../utils/ApiError.js"
+import { ApiError } from "../utils/apiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { deleteFile, uploadFile } from "../utils/firebaseHelpers.js"
