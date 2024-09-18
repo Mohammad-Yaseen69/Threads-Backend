@@ -104,18 +104,67 @@ const getMessages = asyncHandler(async (req, res) => {
 
 
 const getConversations = asyncHandler(async (req, res) => {
-    const user = req.user._id
+    const userId = req.user._id;
 
-    const conversations = await Conversation.find({ participants: user }).populate("participants", "name pfp.url")
+    const conversations = await Conversation.aggregate([
+        // Match conversations where the logged-in user is one of the participants
+        {
+            $match: {
+                participants: userId,
+            },
+        },
+        // Exclude conversations where the other participant is the logged-in user
+        {
+            $addFields: {
+                otherParticipant: {
+                    $filter: {
+                        input: '$participants',
+                        as: 'participant',
+                        cond: { $ne: ['$$participant', userId] },
+                    },
+                },
+            },
+        },
+        {
+            $match: {
+                otherParticipant: { $ne: [] },
+            },
+        },
+        // Populate participant details
+        {
+            $lookup: {
+                from: 'users',
+                localField: 'otherParticipant',
+                foreignField: '_id',
+                as: 'participantsInfo',
+            },
+        },
+        {
+            $unwind: {
+                path: '$participantsInfo',
+                preserveNullAndEmptyArrays: true,
+            },
+        },
+        // Project fields as needed
+        {
+            $project: {
+                _id: 1,
+                participants: 1,
+                lastMessage: 1,
+                'participantsInfo.name': 1,
+                'participantsInfo.pfp': 1,
+            },
+        },
+    ]);
 
-    if (!conversations) {
-        throw new ApiError(404, "No conversations")
+    if (!conversations || conversations.length === 0) {
+        throw new ApiError(404, "No conversations");
     }
 
     res.status(200).json(
         new ApiResponse(200, conversations, "Conversations fetched successfully")
-    )
-})
+    );
+});
 
 const deleteMessage = asyncHandler(async (req, res) => {
     const user = req.user._id
