@@ -47,6 +47,28 @@ const sendMessage = asyncHandler(async (req, res) => {
         )
     }
 
+    if (conversation.isFirstMessage) {
+        conversation.isAllowed = false
+        conversation.isFirstMessage = false
+
+
+        if (!conversation) {
+            throw new ApiError(400, "Error creatin  g conversation please try again")
+        }
+
+        await conversation.save()
+
+        const newMessage = await Message.create({
+            sender: user,
+            text: message,
+            conversation: conversation._id
+        })
+
+        return res.status(200).json(
+            new ApiResponse(200, newMessage, "You can't send more messages until this user allowed you")
+        )
+    }
+
 
     if (conversation.isAllowed === false) {
         throw new ApiError(400, "This user haven't allow you to send messages")
@@ -77,28 +99,45 @@ const sendMessage = asyncHandler(async (req, res) => {
 })
 
 const getMessages = asyncHandler(async (req, res) => {
-    const { id: conversationId } = req.params; // Use conversationId here
+    const { id: conversationId } = req.params;  // The conversation ID
+    const userId = req.user._id;  // The current logged-in user
 
-    const conversation = await Conversation.findById(conversationId);
+    // Check if the conversation exists and if the user is a participant
+    const conversationExists = await Conversation.findById(conversationId);
 
-    if (!conversation) {
+    if (!conversationExists) {
         throw new ApiError(404, "Conversation not found");
     }
 
-    const user = req.user._id;
-    if (!conversation.participants.includes(user)) {
+    // Ensure the user is a participant in the conversation
+    if (!conversationExists.participants.includes(userId)) {
         throw new ApiError(403, "You are not authorized to view these messages");
     }
 
-    // Get messages by conversationId
+    // Find the other participant (the user who isn't the logged-in user)
+    const otherUserId = conversationExists.participants.find(participant => !participant.equals(userId));
+
+    // Fetch the other user's info
+    const otherUser = await User.findById(otherUserId).select('name userName pfp');  // You can modify the fields you need
+
+    // Get the messages by conversationId
     const messages = await Message.find({ conversation: conversationId });
 
     if (!messages) {
         throw new ApiError(404, "No messages found");
     }
 
+    // Return the messages and other user's info
     res.status(200).json(
-        new ApiResponse(200, messages, "Messages fetched successfully")
+        new ApiResponse(200, {
+            conversation: {
+                otherUser,  // Add the other user's info
+                conversationId: conversationExists._id,
+                isAllowed: conversationExists.isAllowed,
+                _id: conversationExists._id
+            },
+            messages
+        }, "Messages fetched successfully")
     );
 });
 
@@ -224,10 +263,34 @@ const allowUserToChat = asyncHandler(async (req, res) => {
 
     await conversation.save()
 
-    res.status(200).json(
+
+    return res.status(200).json(
         new ApiResponse(200, {}, "Conversation allowed successfully")
     )
 })
+
+const canAllow = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const { id: conversationId } = req.params;
+
+    let canAllow = false;
+
+    // Find the conversation where the user is a participant
+    const conversation = await Conversation.findOne({
+        _id: conversationId,
+        participants: userId
+    });
+
+    // If the conversation exists and the user is the second participant (index 1)
+    if (conversation && conversation.participants[1].equals(userId)) {
+        canAllow = true;  // Allow access if the user is the second participant
+    }
+
+    return res.status(200).json(
+        new ApiResponse(200, { canAllow })
+    );
+});
+
 
 const getOrCreateConversation = asyncHandler(async (req, res) => {
     const { id: receiverId } = req.params;  // This is the ID of the other user (e.g., Yaseen)
@@ -253,7 +316,7 @@ const getOrCreateConversation = asyncHandler(async (req, res) => {
             text: "",
             sender: userId,
         },
-        isAllowed: false
+        isFirstMessage: true
     });
 
     await conversation.save();
@@ -272,5 +335,6 @@ export {
     deleteMessage,
     deleteConversation,
     allowUserToChat,
-    getOrCreateConversation
+    getOrCreateConversation,
+    canAllow
 }

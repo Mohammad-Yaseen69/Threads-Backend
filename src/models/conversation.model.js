@@ -15,6 +15,10 @@ const conversationSchema = new mongoose.Schema({
     isAllowed: {
         type: Boolean,
         default: true
+    },
+    isFirstMessage: {
+        type: Boolean,
+        default: false
     }
 },{timestamps: true})
 
