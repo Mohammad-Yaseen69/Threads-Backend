@@ -31,7 +31,7 @@ const sendMessage = asyncHandler(async (req, res) => {
         })
 
         if (!conversation) {
-            throw new ApiError(400, "Error creatin  g conversation please try again")
+            throw new ApiError(400, "Error creating conversation please try again")
         }
 
         await conversation.save()
@@ -65,7 +65,7 @@ const sendMessage = asyncHandler(async (req, res) => {
         })
 
         return res.status(200).json(
-            new ApiResponse(200, newMessage, "You can't send more messages until this user allowed you")
+            new ApiResponse(200, {messageData: newMessage, isAllowed: false}, "You can't send more messages until this user allowed you")
         )
     }
 
@@ -94,7 +94,7 @@ const sendMessage = asyncHandler(async (req, res) => {
 
 
     res.status(200).json(
-        new ApiResponse(200, newMessage, "Message sent successfully")
+        new ApiResponse(200, {messageData: newMessage}, "Message sent successfully")
     )
 })
 
@@ -183,6 +183,11 @@ const getConversations = asyncHandler(async (req, res) => {
                 path: '$participantsInfo',
                 preserveNullAndEmptyArrays: true,
             },
+        },
+        {
+            $sort: {
+                updatedAt: -1
+            }
         },
         // Project fields as needed
         {
