@@ -442,5 +442,6 @@ export {
     getLoggedInUser,
     changePassword,
     changeUserName,
-    getSuggestedUsers
+    getSuggestedUsers,
+    getUserById
 }

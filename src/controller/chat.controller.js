@@ -153,6 +153,7 @@ const getConversations = asyncHandler(async (req, res) => {
                 lastMessage: 1,
                 'participantsInfo.name': 1,
                 'participantsInfo.pfp': 1,
+                'participantsInfo._id': 1,
             },
         },
     ]);
@@ -228,6 +229,42 @@ const allowUserToChat = asyncHandler(async (req, res) => {
     )
 })
 
+const getOrCreateConversation = asyncHandler(async (req, res) => {
+    const { id: receiverId } = req.params;  // This is the ID of the other user (e.g., Yaseen)
+    const userId = req.user._id;  // This is the current logged-in user (e.g., Toji)
+
+    // Find a conversation where both users are participants, no matter the order
+    let conversation = await Conversation.findOne({
+        participants: { $all: [userId, receiverId] }  // $all matches both users in any order
+    });
+
+    // If the conversation exists, return it
+    if (conversation) {
+        return res.status(200).json({
+            success: true,
+            conversationId: conversation._id
+        });
+    }
+
+    // If no conversation exists, create a new one
+    conversation = new Conversation({
+        participants: [userId, receiverId],
+        lastMessage: {
+            text: "",
+            sender: userId,
+        },
+        isAllowed: false
+    });
+
+    await conversation.save();
+
+    return res.status(201).json({
+        success: true,
+        conversationId: conversation._id
+    });
+});
+
+
 export {
     sendMessage,
     getMessages,
@@ -235,4 +272,5 @@ export {
     deleteMessage,
     deleteConversation,
     allowUserToChat,
+    getOrCreateConversation
 }
