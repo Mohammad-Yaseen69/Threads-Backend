@@ -12,10 +12,19 @@ const io = new Server(server, {
     }
 });
 
+const onlineUsers = {}
 
 
 io.on("connection", (socket) => {
     console.log("A user connected", socket.id)
+    const userId = socket.handshake.query.userId
+
+
+    if(userId !== "undefined"){
+        onlineUsers[userId] = socket.id
+    }
+
+    socket.emit("getOnlineUsers" , Object.keys(onlineUsers))
 
     socket.on("disconnect", () => {
         console.log("User disconnected")
