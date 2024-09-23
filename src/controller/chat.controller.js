@@ -4,6 +4,8 @@ import { asyncHandler } from "../utils/asyncHandler.js"
 import { User } from "../models/user.model.js"
 import { Conversation } from '../models/conversation.model.js'
 import { Message } from "../models/message.model.js"
+import { getSocketId } from "../socket/socket.js"
+import { io } from "../socket/socket.js"
 
 
 const sendMessage = asyncHandler(async (req, res) => {
@@ -20,15 +22,10 @@ const sendMessage = asyncHandler(async (req, res) => {
         participants: { $all: [user, receiverId] }
     })
 
-    if (!conversation) {
-        conversation = await Conversation.create({
-            participants: [user, receiverId],
-            lastMessage: {
-                text: message,
-                sender: user,
-            },
-            isAllowed: false
-        })
+    if (conversation.isFirstMessage) {
+        conversation.isAllowed = false
+        conversation.isFirstMessage = false
+
 
         if (!conversation) {
             throw new ApiError(400, "Error creating conversation please try again")
@@ -42,31 +39,16 @@ const sendMessage = asyncHandler(async (req, res) => {
             conversation: conversation._id
         })
 
-        return res.status(200).json(
-            new ApiResponse(200, newMessage, "You can't send more messages until this user allowed you")
-        )
-    }
+        const socketIdOfUser = getSocketId(receiverId)
 
-    if (conversation.isFirstMessage) {
-        conversation.isAllowed = false
-        conversation.isFirstMessage = false
+        console.log(socketIdOfUser)
 
-
-        if (!conversation) {
-            throw new ApiError(400, "Error creatin  g conversation please try again")
-        }
-
-        await conversation.save()
-
-        const newMessage = await Message.create({
-            sender: user,
-            text: message,
-            conversation: conversation._id
-        })
+        io.to(socketIdOfUser).emit("newMessage", newMessage)
 
         return res.status(200).json(
-            new ApiResponse(200, {messageData: newMessage, isAllowed: false}, "You can't send more messages until this user allowed you")
+            new ApiResponse(200, { messageData: newMessage, isAllowed: false }, "You can't send more messages until this user allowed you")
         )
+
     }
 
 
@@ -92,9 +74,12 @@ const sendMessage = asyncHandler(async (req, res) => {
 
     await conversation.save()
 
+    const socketIdOfUser = getSocketId(receiverId);
+    console.log('Socket ID for Receiver:', socketIdOfUser);  // Ensure this isn't null or undefined
+    io.to(socketIdOfUser).emit("newMessage", newMessage);
 
     res.status(200).json(
-        new ApiResponse(200, {messageData: newMessage}, "Message sent successfully")
+        new ApiResponse(200, { messageData: newMessage }, "Message sent successfully")
     )
 })
 

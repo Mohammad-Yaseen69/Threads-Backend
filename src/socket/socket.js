@@ -12,6 +12,10 @@ const io = new Server(server, {
     }
 });
 
+export const getSocketId = (userId) => {
+    return onlineUsers[userId]
+}
+
 const onlineUsers = {}
 
 
@@ -24,10 +28,12 @@ io.on("connection", (socket) => {
         onlineUsers[userId] = socket.id
     }
 
-    socket.emit("getOnlineUsers" , Object.keys(onlineUsers))
+    io.emit("getOnlineUsers" , Object.keys(onlineUsers))
 
     socket.on("disconnect", () => {
         console.log("User disconnected")
+        delete onlineUsers[userId]
+        io.emit("getOnlineUsers", Object.keys(onlineUsers))
     })
 })
 
