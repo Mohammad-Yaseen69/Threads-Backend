@@ -6,6 +6,7 @@ import { Conversation } from '../models/conversation.model.js'
 import { Message } from "../models/message.model.js"
 import { getSocketId } from "../socket/socket.js"
 import { io } from "../socket/socket.js"
+import { text } from "express"
 
 
 const sendMessage = asyncHandler(async (req, res) => {
@@ -39,11 +40,36 @@ const sendMessage = asyncHandler(async (req, res) => {
             conversation: conversation._id
         })
 
+        conversation.lastMessage = {
+            sender: user,
+            text: message
+        }
+
+
+        await conversation.save()
+
         const socketIdOfUser = getSocketId(receiverId)
 
         console.log(socketIdOfUser)
 
-        io.to(socketIdOfUser).emit("newMessage", newMessage)
+
+
+        // Reciever User Document should be current logged in user
+
+        const receiverUser = await User.findById(user)
+
+        const conversationModifiedObject = {
+            lastMessage: conversation.lastMessage,
+            _id : conversation._id,
+            participants: conversation.participants,
+            participantsInfo: {
+                name: receiverUser.name,
+                pfp: receiverUser.pfp,
+                _id: receiverUser._id
+            }
+        }
+
+        io.to(socketIdOfUser).emit("newConversation", conversationModifiedObject)
 
         return res.status(200).json(
             new ApiResponse(200, { messageData: newMessage, isAllowed: false }, "You can't send more messages until this user allowed you")
@@ -75,7 +101,7 @@ const sendMessage = asyncHandler(async (req, res) => {
     await conversation.save()
 
     const socketIdOfUser = getSocketId(receiverId);
-    console.log('Socket ID for Receiver:', socketIdOfUser);  // Ensure this isn't null or undefined
+    console.log('Socket ID for Receiver:', socketIdOfUser);
     io.to(socketIdOfUser).emit("newMessage", newMessage);
 
     res.status(200).json(
@@ -211,7 +237,23 @@ const deleteMessage = asyncHandler(async (req, res) => {
         throw new ApiError(400, "You can't delete other users' messages");
     }
 
+
     await Message.findOneAndDelete({ _id: messageId, sender: user });
+
+    io.emit("messageDeleted", { messageId, conversationId: conversation._id });
+
+    const allMessages = await Message.find({ conversation: conversation._id });
+
+
+    const lastMessage = allMessages[allMessages.length - 1] ? allMessages[allMessages.length - 1] : allMessages[allMessages.length - 2];
+
+    await Conversation.findByIdAndUpdate(conversation._id, {
+        lastMessage: {
+            text: lastMessage ? lastMessage.text : "",
+            sender: lastMessage ? lastMessage.sender : ""
+        }
+    })
+    // Conversation.lastMessage = 
 
     res.status(200).json(
         new ApiResponse(200, {}, "Message deleted successfully")
@@ -222,7 +264,7 @@ const deleteConversation = asyncHandler(async (req, res) => {
     const user = req.user._id
     const { id: conversationId } = req.params
 
-    const conversation = await Conversation.findOneAndDelete({
+    const conversation = await Conversation.findOne({
         _id: conversationId,
         participants: user
     })
@@ -230,6 +272,17 @@ const deleteConversation = asyncHandler(async (req, res) => {
     if (!conversation) {
         throw new ApiError(404, "Conversation not found")
     }
+
+    await Conversation.findOneAndDelete({
+        _id: conversationId,
+        participants: user
+    })
+
+    const otherUserId = conversation.participants.find(participant => !participant.equals(user));
+
+    const socketIdOfUser = getSocketId(otherUserId)
+
+    io.to(socketIdOfUser).emit("conversationDeleted", conversationId);
 
     res.status(200).json(
         new ApiResponse(200, {}, "Conversation deleted successfully")
@@ -252,6 +305,10 @@ const allowUserToChat = asyncHandler(async (req, res) => {
     conversation.isAllowed = true
 
     await conversation.save()
+
+
+
+    io.emit("conversationAllowed", conversationId);
 
 
     return res.status(200).json(
