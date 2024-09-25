@@ -294,17 +294,11 @@ const changeUserName = asyncHandler(async (req, res) => {
 })
 
 const changePassword = asyncHandler(async (req, res) => {
-    const { oldPassword, newPassword } = req.body
+    const { newPassword } = req.body
     const user = req.user
 
-    if (!oldPassword || !newPassword) {
+    if (!newPassword) {
         throw new ApiError(400, "All fields are required")
-    }
-
-    const isCorrect = await user.comparePassword(oldPassword)
-
-    if (!isCorrect) {
-        throw new ApiError(400, "Invalid old password")
     }
 
     user.password = newPassword
@@ -382,15 +376,13 @@ const userFeed = asyncHandler(async (req, res) => {
     }
 
     // Step 2: Check if feed has less than 10 posts
-    if (feed.length < 10) {
-        const additionalPostsCount = 10 - feed.length;
+    if (feed.length < 20) {
 
         // Fetch additional posts from other users to fill up the feed
         let additionalPosts = await Post.find({
             postedBy: { $nin: user.following.concat(user._id) }  // Exclude posts by followed users and the current user
         })
             .sort({ createdAt: -1 })
-            .limit(additionalPostsCount)
             .populate("postedBy", "name userName pfp _id");
 
         // Format additional posts to match the structure of the aggregation result
