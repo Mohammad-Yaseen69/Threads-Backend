@@ -7,7 +7,7 @@ const router = Router();
 router.post("/send/:id", userAuth, sendMessage)
 router.get("/get/messages/:id", userAuth, getMessages)
 router.get("/get/conversations", userAuth, getConversations)
-router.delete("/delete/message/:id", userAuth, deleteMessage)
+router.delete("/delete/message/:id/:conversationId", userAuth, deleteMessage)
 router.delete("/delete/conversation/:id", userAuth, deleteConversation)
 router.post("/allow/:id", userAuth, allowUserToChat)
 router.get("/canAllow/:id", userAuth, canAllow)

@@ -224,9 +224,9 @@ const getConversations = asyncHandler(async (req, res) => {
 
 const deleteMessage = asyncHandler(async (req, res) => {
     const user = req.user._id
-    const { id: messageId } = req.params
+    const { id: messageId, conversationId } = req.params
 
-    const conversation = await Conversation.findOne({ participants: user })
+    const conversation = await Conversation.findById(conversationId)
     if (!conversation) {
         throw new ApiError(404, "Conversation not found")
     }
