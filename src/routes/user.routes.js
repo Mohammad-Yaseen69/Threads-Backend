@@ -12,6 +12,7 @@ import {
     changePassword,
     changeUserName,
     getSuggestedUsers,
+    searchUsers
 } from "../controller/user.controllers.js"
 import { userAuth } from "../middlewares/auth.middleware.js"
 import { upload } from "../middlewares/multer.middleware.js"
@@ -34,5 +35,6 @@ router.post("/changeUserName", userAuth, changeUserName)
 router.get("/profile/:userName", userAuth, getUserProfile)
 router.get("/feed", userAuth, userFeed)
 router.get("/suggested", userAuth, getSuggestedUsers)
+router.get("/search", userAuth, searchUsers)
 
 export default router;

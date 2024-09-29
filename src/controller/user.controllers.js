@@ -409,16 +409,57 @@ const userFeed = asyncHandler(async (req, res) => {
 
 const getSuggestedUsers = asyncHandler(async (req, res) => {
     const user = req.user;
+    const { moreUsers } = req.query
+    let suggestedUsers = []
 
-    const suggestedUsers = await User.find({
-        _id: { $nin: [user?._id, ...user.following] }  // Exclude the current user and followed users
-    })
-        .limit(5);
+    if (!moreUsers) {
+        suggestedUsers = await User.find({
+            _id: { $nin: [user?._id, ...user.following] }  // Exclude the current user and followed users
+        })
+            .limit(5);
+    } else {
+        suggestedUsers = await User.find({
+            _id: { $nin: [user?._id, ...user.following] }  // Exclude the current user and followed users
+        })
+            .limit(10);
+    }
+
 
     return res.status(200).json(
         new ApiResponse(200, suggestedUsers, "Suggested users fetched successfully")
     );
 })
+
+const searchUsers = asyncHandler(async (req, res) => {
+    const { query } = req.query;
+
+    if (!query) {
+        throw new ApiError(400, "Please Provide a Search Query");
+    }
+
+    const aggregation = await User.aggregate([
+        {
+            $search: {
+                index: "search_users",
+                autocomplete: {
+                    query: query,
+                    path: "userName"
+                }
+            }
+        },
+        {
+            $sort: {
+                followers: -1 // Change this to 1 for ascending order if needed
+            }
+        },
+    ]);
+
+    return res.status(200).json({
+        success: true,
+        data: aggregation
+    });
+});
+
 
 
 
@@ -435,4 +476,5 @@ export {
     changePassword,
     changeUserName,
     getSuggestedUsers,
+    searchUsers
 }
